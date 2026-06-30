@@ -1,18 +1,22 @@
 import ast
 import re
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
 import cognee
 from datapoints import (
     File, Function, Class, Directory )
 from edges import (  FileContainsFunction, FileContainsClass, ClassContainsFunction , DirectoryContainsFile
 )
 from cognee.tasks.storage import add_data_points
+from dotenv import load_dotenv
 SKIP_DIRS = {"venv", ".venv", "env", ".git", "__pycache__", "node_modules", "dist", "build", "site-packages"}
 
 class SearchTool:
 
     def __init__(self, repo_path: str):
         self.repo = Path(repo_path)
+        self.repo_name = self.repo.name
 
     async def run(self, mode: str, query: str) -> list[dict]:
         if mode == "ast":
@@ -33,8 +37,7 @@ class SearchTool:
                 if matched:
                     await self._cognify_file(file, tree, source)
                     results.extend(matched)
-                else:
-                    matched = await self._grep_search(query=query)
+                
             except Exception as e:
                 print(f"Failed to parse {file}: {e}")
         return results if results else [{"error": f"'{query}' not found via AST"}]
@@ -48,21 +51,32 @@ class SearchTool:
             try:
                 source = file.read_text(encoding="utf-8")
                 lines = source.splitlines()
-                for line in lines:
+                for line_no, line in enumerate(lines, start=1):
                     if pattern.search(line):
-                        match = re.search(r"def\s+(\w+)|class\s+(\w+)", line)
-                        if match:
-                            name = match.group(1) or match.group(2)
-                            tree = ast.parse(source)
+                        tree = ast.parse(source)
+                        name = self._find_enclosing_name(tree, line_no)
+                        if name:
                             matched = self._extract_matches(tree, source, name)
                             if matched:
                                 await self._cognify_file(file, tree, source)
                                 results.extend(matched)
-                                break  
+                                break
             except Exception as e:
                 print(f"Failed to parse {file}: {e}")
         return results if results else [{"status": "not_found", "query": query, "mode": "grep"}]
-    
+
+    def _find_enclosing_name(self, tree, line_no: int) -> str | None:
+        best = None
+        best_span = None
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                start, end = node.lineno, node.end_lineno
+                if start <= line_no <= end:
+                    span = end - start
+                    if best_span is None or span < best_span:
+                        best = node.name
+                        best_span = span
+        return best
     def _extract_matches(self, tree, source: str, query: str) -> list[dict]:
         results = []
         lines = source.splitlines()
@@ -97,7 +111,7 @@ class SearchTool:
                     calls.append(child.func.id)
                 elif isinstance(child.func, ast.Attribute):
                     calls.append(child.func.attr)
-        return calls | None
+        return calls 
 
     
 
@@ -140,7 +154,7 @@ class SearchTool:
                     node_set.append(cls)
                     node_set.append(FileContainsClass(source=file_node, target=cls))
 
-            await add_data_points(node_set, embed_triplets=True , dataset_name=repo_name)
+            await add_data_points(node_set, embed_triplets=True , dataset_name=self.repo_name)
             await cognee.cognify()
         except Exception as e:
             print(f"Failed to cognify {file}: {e}")

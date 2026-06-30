@@ -1,12 +1,16 @@
+from dotenv import load_dotenv
+load_dotenv()
 from cognee import SearchType
 import cognee
-
-async def cognee_query(query: str, mode: str , repo_name) -> dict:
+# repo_name
+# dataset_name=repo_name
+# dataset_name=repo_name
+async def cognee_query(query: str, mode: str ) -> dict:   
     try:
         if mode == "triplet":
-            results = await cognee.recall(query, query_type=SearchType.TRIPLET_COMPLETION  , dataset_name=repo_name)
+            results = await cognee.recall(query, query_type=SearchType.TRIPLET_COMPLETION )
         else:
-            results = await cognee.recall(query ,  dataset_name=repo_name)
+            results = await cognee.recall(query )
         
         return {
             "success": True,
@@ -20,3 +24,4 @@ async def cognee_query(query: str, mode: str , repo_name) -> dict:
             "error": str(e),
             "results": []
         }
+    
