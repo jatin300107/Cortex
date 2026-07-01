@@ -68,33 +68,8 @@ class ClassContainsFunction(DataPoint):
     source: Class
     target: Function
 
-# IMPORTS
+
 class Imports(DataPoint):
     source: File
     target: File
 
-
-
-class SessionProducedReasoning(DataPoint):
-    source: Session
-    target: ReasoningNode
-
-
-
-class LedTo(DataPoint):
-    source: ReasoningNode
-    target: ReasoningNode
-
-# ERROR
-class OccurredIn(DataPoint):
-    source: ErrorResolutionNode
-    target: Function
-
-class ResolvedIn(DataPoint):
-    source: ErrorResolutionNode
-    target: Session
-
-
-class RaisedIn(DataPoint):
-    source: Blocker
-    target: Session

@@ -4,6 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 import cognee
+from backend.logger.logger_setup import logger
 from datapoints import (
     File, Function, Class, Directory )
 from edges import (  FileContainsFunction, FileContainsClass, ClassContainsFunction , DirectoryContainsFile
@@ -19,12 +20,14 @@ class SearchTool:
         self.repo_name = self.repo.name
 
     async def run(self, mode: str, query: str) -> list[dict]:
+        logger.info("Search started")
         if mode == "ast":
             return await self._ast_search(query)
         elif mode == "grep":
             return await self._grep_search(query)
         else:
             raise ValueError(f"Unknown mode: {mode}")
+
     async def _ast_search(self, query: str) -> list[dict]:
         results = []
         for file in self.repo.rglob("*.py"):
@@ -39,7 +42,7 @@ class SearchTool:
                     results.extend(matched)
                 
             except Exception as e:
-                print(f"Failed to parse {file}: {e}")
+                logger.error(f"Failed to parse {file}: {e}")
         return results if results else [{"error": f"'{query}' not found via AST"}]
 
     async def _grep_search(self, query: str) -> list[dict]:
@@ -61,8 +64,8 @@ class SearchTool:
                                 await self._cognify_file(file, tree, source)
                                 results.extend(matched)
                                 break
-            except Exception as e:
-                print(f"Failed to parse {file}: {e}")
+            except Exception:
+                logger.exception("Grep search failed for file")
         return results if results else [{"status": "not_found", "query": query, "mode": "grep"}]
 
     def _find_enclosing_name(self, tree, line_no: int) -> str | None:
@@ -154,7 +157,7 @@ class SearchTool:
                     node_set.append(cls)
                     node_set.append(FileContainsClass(source=file_node, target=cls))
 
-            await add_data_points(node_set, embed_triplets=True , dataset_name=self.repo_name)
+            await add_data_points(node_set, embed_triplets=True)
             await cognee.cognify()
         except Exception as e:
-            print(f"Failed to cognify {file}: {e}")
+            logger.error(f"Failed to cognify {file}: {e}")

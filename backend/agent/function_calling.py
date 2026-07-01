@@ -1,18 +1,22 @@
 from dotenv import load_dotenv
 load_dotenv()
-
+from datapoints import ReasoningNode
 from google import genai
 from dotenv import load_dotenv
 import ast
 from pathlib import Path
+import cognee
+from cognee.tasks.storage import add_data_points
 import json
 import asyncio
 import os
-from tools.tool_declaration import search_repo_declaration , cognee_query_declaration
-from tools.search_tool import SearchTool
-from tools.cognee_search import  cognee_query
+from backend.tools.tool_declaration import search_repo_declaration , cognee_query_declaration
+from backend.tools.search_tool import SearchTool
+from backend.tools.cognee_search import  cognee_query
 from pydantic import BaseModel 
 from typing import Optional
+from backend.logger.logger_setup import logger
+from backend.exceptions import AIRequestError
 client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 class CortexResponse(BaseModel):
@@ -50,8 +54,11 @@ async def agent_loop(user_input , repo):
             "schema" : CortexResponse.model_json_schema()},
         
     )
+        logger.info(f"Requst sent to gemini")
     except Exception as e:
-        print(e)
+        logger.error(f"{e}")
+        raise AIRequestError(e)
+        
     if interaction:
         print(interaction)
     else:
@@ -62,6 +69,7 @@ async def agent_loop(user_input , repo):
         for step in interaction.steps:
             if step.type == "function_call":
                 func = tool_map[step.name]
+                logger.info(f"tool used : {step.name}")
                 try:
                     result = await func(**step.arguments)
                     print(result)
@@ -87,12 +95,23 @@ async def agent_loop(user_input , repo):
             "schema" : CortexResponse.model_json_schema()},
         
                 )
-    try:
-        response = CortexResponse.model_validate_json(interaction.output_text)
-    except Exception as e:
-        print(e)
+    
+    response = CortexResponse.model_validate_json(interaction.output_text)
+    
+    node = ReasoningNode(
+    query=user_input,          
+    
+    intent=response.intent,
+    reasoning_chain=response.reasoning_chain,
+    conclusion=response.conclusion,
+)
+    if response.should_remember:
+        logger.info("Persisting reasoning to Cognee")
+        await add_data_points([node])
+        await cognee.cognify()
+
+    
     print(response)
-
-
-asyncio.run(agent_loop("what was out previous interaction about" , repo=r"C:\Users\Om Prakash Yadav\Desktop\Kisanseva"))
+    print(response.answer)
+    return response.answer
 
