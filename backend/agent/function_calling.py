@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from typing import Optional
 from backend.logger.logger_setup import logger
 from backend.exceptions import AIRequestError
+from .dataset import store_datasets
 client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 class CortexResponse(BaseModel):
@@ -26,8 +27,8 @@ class CortexResponse(BaseModel):
     reasoning_chain: Optional[str]
     conclusion: Optional[str]
 
-async def agent_loop(user_input , repo):
-    search_tool = SearchTool(repo_path=repo)
+async def agent_loop(user_input , repo , dataset_id):
+    search_tool = SearchTool(repo_path=repo , dataset_id = dataset_id)
     tool_map = {
         "search_repo": search_tool.run,
         "cognee_query": cognee_query,
@@ -36,15 +37,23 @@ async def agent_loop(user_input , repo):
 
         interaction =  client.interactions.create(
         model="gemini-3.1-flash-lite",
-        system_instruction = """You are a code intelligence agent for a software repository.
-                                When asked about code, first try the cognee_query tool to check 
-                                existing knowledge before searching the repository directly. If 
-                                cognee_query doesn't have enough information, use the search_repo 
-                                tool to explore the codebase — use 'ast' mode when you know the exact 
-                                function or class name, and 'grep' mode when you only have a code snippet 
-                                or partial text.After gathering enough information, always return a clear, 
-                                complete answer explaining what you found. Never stop at just calling a 
-                                tool — always summarize your findings for the user.""",
+        system_instruction ='''You are a code intelligence agent for a software repository.
+
+            Only use tools when the user's message actually requires repository or 
+            project knowledge — a specific function, class, file, past decision, or 
+            codebase behavior. For greetings, small talk, or general questions unrelated 
+            to the repository, answer directly with no tool calls.
+
+            When a tool is needed:
+            1. Try cognee_query first, to check existing knowledge before searching the 
+            repository directly.
+            2. If cognee_query doesn't have enough information, use search_repo to 
+            explore the codebase — 'ast' mode when you know the exact function or 
+            class name, 'grep' mode when you only have a code snippet or partial text.
+
+            After gathering information, always return a clear, complete answer 
+            explaining what you found. Never stop at just calling a tool — summarize 
+            your findings for the user.''',
         input=user_input,
         tools= [{"type": "function", **search_repo_declaration},
                     {"type" : "function" , **cognee_query_declaration}],
@@ -71,7 +80,10 @@ async def agent_loop(user_input , repo):
                 func = tool_map[step.name]
                 logger.info(f"tool used : {step.name}")
                 try:
-                    result = await func(**step.arguments)
+                    if step.name == "search_repo":
+                        result = await func(**step.arguments)
+                    else:    
+                        result = await func(**step.arguments, dataset_id = [dataset_id])
                     print(result)
                     function_results.append({
                 "type": "function_result",
@@ -107,8 +119,8 @@ async def agent_loop(user_input , repo):
 )
     if response.should_remember:
         logger.info("Persisting reasoning to Cognee")
-        await add_data_points([node])
-        await cognee.cognify()
+        await store_datasets(node_set=node, dataset_id=dataset_id)
+        
 
     
     print(response)

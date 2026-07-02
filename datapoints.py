@@ -39,7 +39,7 @@ class Session(DataPoint):
     timestamp: datetime
 
 class ReasoningNode(DataPoint):
-    session_id: Annotated[int, Dedup()]
+    
     intent: Annotated[str, Dedup()]
     reasoning_chain: Annotated[str | None, Embeddable()] = None
     conclusion: Annotated[str | None, Embeddable()] = None

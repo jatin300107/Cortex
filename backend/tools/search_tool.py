@@ -11,16 +11,20 @@ from edges import (  FileContainsFunction, FileContainsClass, ClassContainsFunct
 )
 from cognee.tasks.storage import add_data_points
 from dotenv import load_dotenv
+from backend.agent.dataset import store_datasets
 SKIP_DIRS = {"venv", ".venv", "env", ".git", "__pycache__", "node_modules", "dist", "build", "site-packages"}
 
 class SearchTool:
 
-    def __init__(self, repo_path: str):
+    def __init__(self, repo_path: str , dataset_id):
         self.repo = Path(repo_path)
         self.repo_name = self.repo.name
+        self.dataset_id = dataset_id
+        
 
-    async def run(self, mode: str, query: str) -> list[dict]:
+    async def run(self, mode: str, query: str ) -> list[dict]:
         logger.info("Search started")
+        
         if mode == "ast":
             return await self._ast_search(query)
         elif mode == "grep":
@@ -157,7 +161,7 @@ class SearchTool:
                     node_set.append(cls)
                     node_set.append(FileContainsClass(source=file_node, target=cls))
 
-            await add_data_points(node_set, embed_triplets=True)
-            await cognee.cognify()
+            
+            await store_datasets(node_set=node_set , dataset_id=self.dataset_id)
         except Exception as e:
-            logger.error(f"Failed to cognify {file}: {e}")
+            logger.error(f"Failed to cognify {file}: {e}", exc_info=True)
