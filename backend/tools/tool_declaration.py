@@ -22,7 +22,19 @@ search_repo_declaration = {
 cognee_query_declaration = {
     "type": "function",
     "name": "cognee_query",
-    "description": "Searches the knowledge graph of previously ingested code structure and session memory. Always try this before search_repo, since it may already contain the answer without needing to re-scan the repo.",
+    "description": "Retrieves repository knowledge from Cognee's knowledge graph. "
+    "Use ONLY when the user's request requires repository-specific information "
+    "(functions, classes, files, architecture, previous implementation decisions, "
+    "or previously learned repository knowledge).\n\n"
+
+    "Do NOT use for greetings, casual conversation, thanks, or general questions.\n\n"
+
+    "When calling this tool, rewrite the user's request into a clear, self-contained "
+    "retrieval query. Preserve the user's intent, but do not invent facts or assume "
+    "implementation details. Include only information explicitly provided by the "
+    "user or established in the current conversation.\n\n"
+
+    "If repository context is required, prefer this tool before search_repo.",
     "parameters": {
         "type": "object",
         "properties": {

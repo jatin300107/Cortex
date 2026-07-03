@@ -1,23 +1,25 @@
 from dotenv import load_dotenv
 load_dotenv()
-from datapoints import ReasoningNode
+
 from google import genai
 from dotenv import load_dotenv
 import ast
 from pathlib import Path
-import cognee
-from cognee.tasks.storage import add_data_points
+from fastapi import HTTPException
+
 import json
 import asyncio
 import os
 from backend.tools.tool_declaration import search_repo_declaration , cognee_query_declaration
 from backend.tools.search_tool import SearchTool
-from backend.tools.cognee_search import  cognee_query
+from backend.tools.cognee_search import CogneeSearch
 from pydantic import BaseModel 
 from typing import Optional
-from backend.logger.logger_setup import logger
+from backend.logger.logger_setup import logger_setup
 from backend.exceptions import AIRequestError
-from .dataset import store_datasets
+
+import cognee
+logger = logger_setup()
 client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 class CortexResponse(BaseModel):
@@ -27,11 +29,13 @@ class CortexResponse(BaseModel):
     reasoning_chain: Optional[str]
     conclusion: Optional[str]
 
-async def agent_loop(user_input , repo , dataset_id):
-    search_tool = SearchTool(repo_path=repo , dataset_id = dataset_id)
+async def agent_loop(user_input , repo ):
+    search_tool = SearchTool(repo_path=repo)
+    repo = Path(repo)
+    cognee_search = CogneeSearch(repo_name=repo.name)
     tool_map = {
         "search_repo": search_tool.run,
-        "cognee_query": cognee_query,
+        "cognee_query": cognee_search.cognee_query,
     }
     try:
 
@@ -50,7 +54,7 @@ async def agent_loop(user_input , repo , dataset_id):
             2. If cognee_query doesn't have enough information, use search_repo to 
             explore the codebase — 'ast' mode when you know the exact function or 
             class name, 'grep' mode when you only have a code snippet or partial text.
-
+            
             After gathering information, always return a clear, complete answer 
             explaining what you found. Never stop at just calling a tool — summarize 
             your findings for the user.''',
@@ -63,6 +67,7 @@ async def agent_loop(user_input , repo , dataset_id):
             "schema" : CortexResponse.model_json_schema()},
         
     )
+        
         logger.info(f"Requst sent to gemini")
     except Exception as e:
         logger.error(f"{e}")
@@ -73,24 +78,28 @@ async def agent_loop(user_input , repo , dataset_id):
     else:
         print("no interaction found")
 
-    while interaction.status == "requires_action":
+    max_tries = 5
+    try_count = 0
+    while interaction.status == "requires_action" :
+        try_count += 1
+        logger.info(f"Agent loop attempt {try_count}/{max_tries}")
         function_results = []
         for step in interaction.steps:
             if step.type == "function_call":
                 func = tool_map[step.name]
                 logger.info(f"tool used : {step.name}")
                 try:
-                    if step.name == "search_repo":
-                        result = await func(**step.arguments)
-                    else:    
-                        result = await func(**step.arguments, dataset_id = [dataset_id])
-                    print(result)
+                    
+                    result = await func(**step.arguments)
                     function_results.append({
                 "type": "function_result",
                 "name": step.name,
                 "call_id": step.id,
                 "result": [{"type": "text", "text": json.dumps(result)}]
             })
+                   
+            
+                    
 
                 except Exception as e:
                     import traceback; traceback.print_exc()
@@ -105,25 +114,35 @@ async def agent_loop(user_input , repo , dataset_id):
             "type" : "text",
             "mime_type"  : "application/json",
             "schema" : CortexResponse.model_json_schema()},
+            
+                
         
                 )
     
+        if try_count >= max_tries and interaction.status == "requires_action":
+            logger.warning(f"Reached max tries ({max_tries}) while agent still requires action")
+            raise HTTPException(status_code=500,detail=f"Reached max tries ({max_tries}) while agent still requires action")
     response = CortexResponse.model_validate_json(interaction.output_text)
     
-    node = ReasoningNode(
-    query=user_input,          
     
-    intent=response.intent,
-    reasoning_chain=response.reasoning_chain,
-    conclusion=response.conclusion,
-)
     if response.should_remember:
-        logger.info("Persisting reasoning to Cognee")
-        await store_datasets(node_set=node, dataset_id=dataset_id)
         
-
-    
-    print(response)
-    print(response.answer)
+        memory_dataset = f"{repo.name}_memory"
+        reasoning_text = (
+        f"Query: {user_input}\n"
+        f"Intent: {response.intent}\n"
+        f"Reasoning: {response.reasoning_chain}\n"
+        f"Conclusion: {response.conclusion}\n"
+        f"Answer: {response.answer}"
+    )
+        try:
+            await cognee.remember(
+            reasoning_text,
+            dataset_name=memory_dataset,
+            self_improvement=True,
+            )
+        except Exception as e:
+            logger.error(f"Failed to ingest reasoning: {e}", exc_info=True)
     return response.answer
-
+        
+        

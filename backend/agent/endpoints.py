@@ -18,11 +18,11 @@ async def chat_request(chat:Chat):
     logger.info(f"User Request: {chat.message}")
     logger.info(f"Repo path: {chat.path}")
     repo = Path(chat.path)
-    dataset_id = await get_dataset_id(repo.name)
+    
     if not chat.repo_type.upper() in ['GITHUB' , 'LOCAL']:
         raise HTTPException(status_code=404 , detail = f"repo type should be  GITHUB or LOCAL" )
     try:
-        response = await agent_loop(user_input = chat.message , repo = chat.path , dataset_id = dataset_id)
+        response = await agent_loop(user_input = chat.message , repo = chat.path)
     except Exception as e:
         logger.error(f"{e}")
         raise HTTPException(status_code = 500 , detail=f"{e}")

@@ -5,21 +5,16 @@ from dotenv import load_dotenv
 load_dotenv()
 import cognee
 from backend.logger.logger_setup import logger
-from datapoints import (
-    File, Function, Class, Directory )
-from edges import (  FileContainsFunction, FileContainsClass, ClassContainsFunction , DirectoryContainsFile
-)
-from cognee.tasks.storage import add_data_points
-from dotenv import load_dotenv
+
 from backend.agent.dataset import store_datasets
 SKIP_DIRS = {"venv", ".venv", "env", ".git", "__pycache__", "node_modules", "dist", "build", "site-packages"}
-
+from os import PathLike
 class SearchTool:
 
-    def __init__(self, repo_path: str , dataset_id):
+    def __init__(self, repo_path: str | PathLike ):
         self.repo = Path(repo_path)
         self.repo_name = self.repo.name
-        self.dataset_id = dataset_id
+
         
 
     async def run(self, mode: str, query: str ) -> list[dict]:
@@ -42,7 +37,7 @@ class SearchTool:
                 tree = ast.parse(source)
                 matched = self._extract_matches(tree, source, query)
                 if matched:
-                    await self._cognify_file(file, tree, source)
+                    await self._cognify_file(file)
                     results.extend(matched)
                 
             except Exception as e:
@@ -65,7 +60,7 @@ class SearchTool:
                         if name:
                             matched = self._extract_matches(tree, source, name)
                             if matched:
-                                await self._cognify_file(file, tree, source)
+                                await self._cognify_file(file)
                                 results.extend(matched)
                                 break
             except Exception:
@@ -92,6 +87,7 @@ class SearchTool:
                 results.append({
                     "type": "function",
                     "name": node.name,
+                    
                     "args": [arg.arg for arg in node.args.args],
                     "return_type": ast.unparse(node.returns) if node.returns else None,
                     "docstring": ast.get_docstring(node),
@@ -122,46 +118,28 @@ class SearchTool:
 
     
 
-    async def _cognify_file(self, file: Path, tree, source: str) -> None:
+    async def _cognify_file(self, file: Path) -> None:
+        self.file_path = str(file)
+        parts = file.parts[1:]
+        file_path_hierarchy = " contains ".join(parts)
+
+        hierarchy_prompt = """
+        Extract only directory and file containment relationships from this text.
+        Each entity is either a folder or a file. Connect them using the relationship "contains".
+        Do not extract any other entity types or relationships.
+        """
+
         try:
-            repo_name = self.repo.name
-            lines = source.splitlines()
-            node_set = []
-
-            dir_node = Directory(path=str(file.parent), repo_name=repo_name)
-            file_node = File(path=str(file), language="python", repo_name=repo_name, access_count=1)
-            node_set.append(dir_node)
-            node_set.append(file_node)
-            node_set.append(DirectoryContainsFile(source=dir_node, target=file_node))
-
-            for node in ast.walk(tree):
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    fn = Function(
-                        name=node.name,
-                        file_path=str(file),
-                        repo_name=repo_name,
-                        args=[arg.arg for arg in node.args.args],
-                        return_type=ast.unparse(node.returns) if node.returns else None,
-                        docstring=ast.get_docstring(node),
-                        body_summary="\n".join(lines[node.lineno - 1:node.end_lineno]),
-                        calls=self._extract_calls(node),
-                        access_count=0
-                    )
-                    node_set.append(fn)
-                    node_set.append(FileContainsFunction(source=file_node, target=fn))
-
-                elif isinstance(node, ast.ClassDef):
-                    cls = Class(
-                        name=node.name,
-                        file_path=str(file),
-                        methods=[n.name for n in ast.walk(node) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))],
-                        docstring=ast.get_docstring(node),
-                        body_summary="\n".join(lines[node.lineno - 1:node.end_lineno]),
-                    )
-                    node_set.append(cls)
-                    node_set.append(FileContainsClass(source=file_node, target=cls))
-
-            
-            await store_datasets(node_set=node_set , dataset_id=self.dataset_id)
+            await cognee.remember(
+                file_path_hierarchy,
+                dataset_name=self.repo_name,
+                custom_prompt=hierarchy_prompt,
+                self_improvement=True,
+            )
+            await cognee.remember(
+                self.file_path,
+                dataset_name=self.repo_name,
+                self_improvement=True,
+            )
         except Exception as e:
             logger.error(f"Failed to cognify {file}: {e}", exc_info=True)
