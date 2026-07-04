@@ -52,6 +52,16 @@ flowchart TD
 The repository's code stays in Git. The *understanding* of the repository lives in Cognee.
 
 ---
+## Why Cognee (Not a Vector Store)
+
+Cortex needed two different kinds of retrieval, and a plain vector database only gives you one of them.
+
+- **Direct facts** ("where is `authenticate_user` implemented") are a similarity-search problem — a vector store handles this fine.
+- **Relational questions** ("how does this connect to the auth flow we explored earlier") aren't. Similarity search returns *similar* chunks, not *connected* ones — it can't tell you that two pieces of code are linked unless their embeddings happen to be close, which they often aren't.
+
+That's why `cognee_query` has a `triplet` mode: Cognee's knowledge graph lets Cortex traverse actual relationships between explored facts — this file calls that function, this function was discovered while investigating that bug — instead of guessing from vector distance. A vector-only setup would've forced every query into "find similar text," even the ones that were fundamentally about *connections*, not *similarity*.
+
+We also split ingestion into two datasets — `repo_name` for code structure and `{repo_name}_memory` for reasoning/conversation history — so the graph keeps "what the code is" separate from "what we learned about it." That distinction only matters if the underlying store can represent structured relationships in the first place.
 
 ## Why This Matters
 
@@ -72,9 +82,16 @@ This is the actual problem open-source contributors face on large codebases: not
 
 ---
 
-## Known Tradeoffs
+## Engineering Notes
 
-Built in a one-week hackathon window — GitHub integration (PR/issue-linked memory) was scoped and intentionally cut to keep the core memory loop stable and fully tested rather than shipping a half-integrated feature.
+Building on Cognee 1.0 during an active development cycle meant debugging the memory layer itself, not just calling it:
+
+- **`add_data_points`-only ingestion silently failed.** `GRAPH_COMPLETION` was returning `None` because writing via `add_data_points` alone never populated the vector store — data existed in the graph but wasn't retrievable. Fixed by routing ingestion through `remember()` instead.
+- **`DatabaseNotCreatedError` / 403 `PermissionDeniedError`.** Traced to `ENABLE_BACKEND_ACCESS_CONTROL` — without setting it to `false`, Cognee's access control blocks dataset reads/writes in a way that looks like a memory bug, not a config issue.
+- **Rejected `only_context=True` on `recall()`.** It returns raw, unstructured context dumps that the orchestration layer can't reliably parse — we kept structured retrieval through `CortexResponse` instead, even though the raw-context path looked like a shortcut early on.
+- **Custom `DataPoint` schema abandoned.** An early attempt to define a custom schema for file content never actually embedded — content was stored but invisible to retrieval. Switched to separate `remember()` calls for file content and folder structure instead.
+
+**Scoped out:** GitHub integration (PR/issue-linked memory) was cut to keep the core memory loop — the actual thing being judged — stable and fully tested, rather than shipping a second, half-working feature.
 
 ---
 
