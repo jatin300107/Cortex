@@ -1,0 +1,310 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ───────────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #0a0a0f;
+  color: #e4e4e7;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Custom Scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ── Selection ─────────────────────────────────────────── */
+::selection {
+  background-color: rgba(99, 102, 241, 0.3);
+  color: white;
+}
+
+/* ── Textarea reset ────────────────────────────────────── */
+textarea {
+  field-sizing: content;
+}
+
+/* ── Markdown prose styling ────────────────────────────── */
+.markdown-body {
+  color: #d4d4d8;
+  line-height: 1.7;
+  font-size: 0.875rem;
+}
+
+.markdown-body h1 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #fafafa;
+  margin-top: 1.25rem;
+  margin-bottom: 0.625rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.markdown-body h2 {
+  font-size: 1.125rem;
+  font-weight: 650;
+  color: #f4f4f5;
+  margin-top: 1.125rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e4e4e7;
+  margin-top: 1rem;
+  margin-bottom: 0.375rem;
+}
+
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #d4d4d8;
+  margin-top: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.markdown-body p {
+  margin-bottom: 0.75rem;
+}
+
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body strong {
+  color: #fafafa;
+  font-weight: 600;
+}
+
+.markdown-body em {
+  color: #a1a1aa;
+  font-style: italic;
+}
+
+.markdown-body a {
+  color: #818cf8;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.markdown-body a:hover {
+  border-bottom-color: #818cf8;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid #4f46e5;
+  padding: 0.5rem 0.875rem;
+  margin: 0.75rem 0;
+  background: rgba(79, 70, 229, 0.06);
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #a1a1aa;
+}
+
+.markdown-body blockquote p {
+  margin-bottom: 0;
+}
+
+/* ── Lists ─────────────────────────────────────────────── */
+.markdown-body ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-body ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-body li {
+  margin-bottom: 0.25rem;
+  padding-left: 0.125rem;
+}
+
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* ── Inline Code ───────────────────────────────────────── */
+.markdown-body :not(pre) > code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8em;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  padding: 0.15em 0.4em;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  font-weight: 500;
+}
+
+/* ── Code Blocks ───────────────────────────────────────── */
+.markdown-body pre {
+  background: #0d0d14;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.75rem;
+  padding: 0;
+  margin: 0.75rem 0;
+  overflow: hidden;
+}
+
+.markdown-body pre code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  display: block;
+  padding: 1rem;
+  overflow-x: auto;
+  color: #d4d4d8;
+  background: none;
+  border: none;
+}
+
+/* ── Tables ────────────────────────────────────────────── */
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.8125rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.markdown-body thead {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.markdown-body th {
+  text-align: left;
+  padding: 0.625rem 0.75rem;
+  font-weight: 600;
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.markdown-body td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #d4d4d8;
+}
+
+.markdown-body tr:last-child td {
+  border-bottom: none;
+}
+
+.markdown-body tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Horizontal Rule ───────────────────────────────────── */
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 1rem 0;
+}
+
+/* ── Syntax Highlighting (highlight.js compatible) ─────── */
+.hljs-comment,
+.hljs-quote {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: #c084fc;
+}
+
+.hljs-string,
+.hljs-addition {
+  color: #86efac;
+}
+
+.hljs-number,
+.hljs-literal {
+  color: #fbbf24;
+}
+
+.hljs-built_in,
+.hljs-type {
+  color: #67e8f9;
+}
+
+.hljs-function .hljs-title,
+.hljs-title.function_ {
+  color: #93c5fd;
+}
+
+.hljs-attr,
+.hljs-attribute {
+  color: #fdba74;
+}
+
+.hljs-variable {
+  color: #f87171;
+}
+
+.hljs-deletion {
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
+.hljs-addition {
+  background-color: rgba(134, 239, 172, 0.1);
+}
+
+.hljs-meta {
+  color: #818cf8;
+}
+
+.hljs-regexp {
+  color: #fb923c;
+}
+
+.hljs-symbol,
+.hljs-bullet {
+  color: #a78bfa;
+}

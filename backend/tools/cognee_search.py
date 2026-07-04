@@ -5,6 +5,8 @@ import cognee
 from get_utils import get_user
 from backend.logger.logger_setup import logger_setup
 logger = logger_setup()
+from fastapi import HTTPException
+from cognee.shared.logging_utils import DatasetNotFoundError
 # repo_name
 # dataset_name=repo_name
 # dataset_name=repo_name
@@ -36,6 +38,17 @@ class CogneeSearch():
                 "success": True,
                 "answer": answer,
             }
+        except DatasetNotFoundError:
+
+
+
         except Exception as e:
             logger.error(f"cognee_query failed: {e}", exc_info=True)
+            error_str = str(e).lower()
+
+            if "rate limit" in error_str or "429" in error_str:
+                logger.error(f"Rate limit hit in cognee_query: {e}", exc_info=True)
+                raise HTTPException(status_code=429, detail="Rate limit exceeded, please try again later.")
+            logger.error(f"cognee_query failed: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
+        

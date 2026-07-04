@@ -13,7 +13,7 @@ class Chat(BaseModel):
     path : str
     repo_type : str
 
-@chat.post('/chat/request')
+@chat.post('/request')
 async def chat_request(chat:Chat):
     logger.info(f"User Request: {chat.message}")
     logger.info(f"Repo path: {chat.path}")

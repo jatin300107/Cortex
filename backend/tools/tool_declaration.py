@@ -1,7 +1,17 @@
 search_repo_declaration = {
     "type": "function",
     "name": "search_repo",
-    "description": "Searches the repository's code structure. Use 'ast' mode when you already know the exact function or class name. Use 'grep' mode when you only have a code snippet or partial text and don't know the enclosing function/class name yet.",
+    "description": """Searches the repository's code structure. Use 'ast' mode when you already know the exact function or class name. Use 'grep' mode when you only have a code snippet or partial text and don't know the enclosing function/class name yet.
+    After calling cognee_query, first determine whether the returned information fully answers the user's question.
+
+Treat the Cognee response as authoritative.
+
+DO NOT call search_repo simply to verify, expand, or restate information that Cognee has already provided.
+
+Call search_repo ONLY if:
+- Cognee returns no answer.
+- Cognee explicitly indicates the information is unavailable.
+- The user explicitly asks for the exact source code, full implementation, line numbers, or other repository details that are missing from Cognee's response.""",
     "parameters": {
         "type": "object",
         "properties": {
