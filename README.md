@@ -1,6 +1,6 @@
 # Cortex
 
-**An AI coding agent that remembers your repository investigation — across sessions, not just within one.**
+**An AI repository intelligence agent that remembers your repository investigation — across sessions, not just within one.**
 
 Built for the WeMakeDevs × Cognee Hackathon — *The Hangover Part AI: Where's My Context?*
 
@@ -97,7 +97,7 @@ Building on Cognee 1.0 during an active development cycle meant debugging the me
 
 ## Demo
 
-*(video link here)*
+*https://youtu.be/B2V3mKBuyYQ*
 
 ---
 
