@@ -84,14 +84,12 @@ async def agent_loop(user_input , repo ):
         logger.error(f"{e}")
         raise AIRequestError(e)
         
-    if interaction:
-        print(interaction)
-    else:
-        print("no interaction found")
+    
 
     max_tries = 3
     try_count = 0
     while interaction.status == "requires_action" :
+        logger.info(f"{interaction.status}")
         try_count += 1
         logger.info(f"Agent loop attempt {try_count}/{max_tries}")
         function_results = []
@@ -131,7 +129,7 @@ async def agent_loop(user_input , repo ):
                 
         
                 )
-        logger.info(interaction)
+        logger.info(interaction.status)
     
         if try_count >= max_tries and interaction.status == "requires_action":
             logger.warning(f"Reached max tries ({max_tries}) while agent still requires action")

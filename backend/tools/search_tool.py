@@ -39,7 +39,8 @@ class SearchTool:
                 if matched:
                     await self._cognify_file(file)
                     results.extend(matched)
-                
+                    results.extend({"file_path" : file})
+                    
             except Exception as e:
                 logger.error(f"Failed to parse {file}: {e}")
         return results if results else [{"error": f"'{query}' not found via AST"}]
