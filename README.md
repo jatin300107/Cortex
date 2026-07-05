@@ -22,24 +22,33 @@ Every query follows the same loop: **check memory first, explore only if needed,
 flowchart TD
     A[Developer Query] --> B[Gemini: Understand Intent]
     B --> C{Choose Retrieval Mode}
+    
     C -->|Default| D[cognee_query: default]
     C -->|Relational| E[cognee_query: triplet]
+    
     D --> F{Memory Sufficient?}
     E --> F
+    
     F -->|Yes| G[Generate Response]
     F -->|No| H[search_repo tool]
+    
     H --> I{Choose Search Mode}
     I -->|Known symbol| J[AST mode]
     I -->|Unknown/partial| K[Grep mode]
+    
     J --> L[Discover New Knowledge]
     K --> L
-    L --> M[cognee remember:<br/>ingest into memory]
+    
+    L --> M[cognee remember:<br/>ingest repo knowledge]
     M --> G
-    G --> N[Response to Developer]
+    
+    G --> N[cognee remember:<br/>ingest response/reasoning into memory dataset]
+    N --> O[Response to Developer]
 
     style D fill:#4a4a8a,stroke:#333,color:#fff
     style E fill:#4a4a8a,stroke:#333,color:#fff
     style M fill:#4a4a8a,stroke:#333,color:#fff
+    style N fill:#4a4a8a,stroke:#333,color:#fff
     style C fill:#8a6a2a,stroke:#333,color:#fff
     style I fill:#8a6a2a,stroke:#333,color:#fff
     style F fill:#8a6a2a,stroke:#333,color:#fff
