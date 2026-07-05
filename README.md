@@ -108,7 +108,18 @@ git clone <repo-url>
 cd cortex
 pip install -r requirements.txt
 cp .env.example .env   # fill in the values below
-python function_calling.py
+```
+
+### Start the servers
+
+Run the backend and frontend in separate terminals:
+
+```powershell
+python app.py
+```
+
+```powershell
+./start-dev.ps1
 ```
 
 ### .env Structure
