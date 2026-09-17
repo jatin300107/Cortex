@@ -38,6 +38,7 @@ async def agent_loop(user_input , repo ):
         "cognee_query": cognee_search.cognee_query,
     }
     try:
+        logger.info(f"Sending request to gemini")
         FULL_SYSTEM_INSTRUCTION = '''You are a code intelligence agent for a software repository.
 
             Only use tools when the user's message actually requires repository or 

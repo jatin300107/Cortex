@@ -7,6 +7,7 @@ from get_utils import get_user
 NAMESPACE = uuid.UUID("85743f0b-4cfa-4dd3-9707-39c0e3a51e9d")  
 
 def get_dataset_id(repo_path: str) -> uuid.UUID:
+    repo_path = "".join(repo_path.split())
     return uuid.uuid5(NAMESPACE, repo_path)
 
 
