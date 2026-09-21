@@ -1,75 +1,61 @@
-from cognee.infrastructure.engine import DataPoint
-from datapoints import Function , Class , Session , Directory , File , ErrorResolutionNode , ReasoningNode , Blocker
-class FunctionCallsFunction(DataPoint):
-    source: Function
-    target: Function
+from datapoints import DataPoint
+from pydantic import BaseModel
+class Edge(BaseModel):
+    source_id: str
+    target_id: str
 
-class FunctionCallsClass(DataPoint):
-    source: Function
-    target: Class
-
-class ClassCallsFunction(DataPoint):
-    source: Class
-    target: Function
-
-class ClassCallsClass(DataPoint):
-    source: Class
-    target: Class
-
-# ASKED_ABOUT
-class SessionAskedAboutFunction(DataPoint):
-    source: Session
-    target: Function
-
-class SessionAskedAboutFile(DataPoint):
-    source: Session
-    target: File
-
-class SessionAskedAboutClass(DataPoint):
-    source: Session
-    target: Class
-
-# REFERENCES
-class ReasoningReferencesFunction(DataPoint):
-    source: ReasoningNode
-    target: Function
-
-class ReasoningReferencesFile(DataPoint):
-    source: ReasoningNode
-    target: File
-
-class ReasoningReferencesClass(DataPoint):
-    source: ReasoningNode
-    target: Class
-
-# BLOCKS
-class BlockerBlocksFunction(DataPoint):
-    source: Blocker
-    target: Function
-
-class BlockerBlocksFile(DataPoint):
-    source: Blocker
-    target: File
-
-# CONTAINS
-class DirectoryContainsFile(DataPoint):
-    source: Directory
-    target: File
-
-class FileContainsClass(DataPoint):
-    source: File
-    target: Class
-
-class FileContainsFunction(DataPoint):
-    source: File
-    target: Function
-
-class ClassContainsFunction(DataPoint):
-    source: Class
-    target: Function
+    @classmethod
+    def from_nodes(cls, source: DataPoint, target: DataPoint, **kwargs):
+        return cls(source_id=source.id, target_id=target.id, **kwargs)
 
 
-class Imports(DataPoint):
-    source: File
-    target: File
+class FunctionCallsFunction(Edge):
+    pass
 
+class FunctionCallsClass(Edge):
+    pass
+
+class ClassCallsFunction(Edge):
+    pass
+
+class ClassCallsClass(Edge):
+    pass
+
+class SessionAskedAboutFunction(Edge):
+    pass
+
+class SessionAskedAboutFile(Edge):
+    pass
+
+class SessionAskedAboutClass(Edge):
+    pass
+
+class ReasoningReferencesFunction(Edge):
+    pass
+
+class ReasoningReferencesFile(Edge):
+    pass
+
+class ReasoningReferencesClass(Edge):
+    pass
+
+class BlockerBlocksFunction(Edge):
+    pass
+
+class BlockerBlocksFile(Edge):
+    pass
+
+class DirectoryContainsFile(Edge):
+    pass
+
+class FileContainsClass(Edge):
+    pass
+
+class FileContainsFunction(Edge):
+    pass
+
+class ClassContainsFunction(Edge):
+    pass
+
+class Imports(Edge):
+    pass
