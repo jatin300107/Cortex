@@ -3,9 +3,10 @@ import re
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
-import cognee
-from backend.logger.logger_setup import logger
 
+from backend.logger.logger_setup import logger
+from datapoints import File, Class, Function
+from edges import Edge, FileContainsFunction, FileContainsClass
 from backend.agent.dataset import store_datasets
 SKIP_DIRS = {"venv", ".venv", "env", ".git", "__pycache__", "node_modules", "dist", "build", "site-packages"}
 from os import PathLike
@@ -37,7 +38,7 @@ class SearchTool:
                 tree = ast.parse(source)
                 matched = self._extract_matches(tree, source, query)
                 if matched:
-                    await self._cognify_file(file)
+                    await self._build_file_datapoints(file)
                     results.extend(matched)
                     results.extend({"file_path" : file})
                     
@@ -61,7 +62,7 @@ class SearchTool:
                         if name:
                             matched = self._extract_matches(tree, source, name)
                             if matched:
-                                await self._cognify_file(file)
+                                await self._build_file_datapoints(file)
                                 results.extend(matched)
                                 break
             except Exception:
@@ -119,28 +120,55 @@ class SearchTool:
 
     
 
-    async def _cognify_file(self, file: Path) -> None:
-        self.file_path = str(file)
-        parts = file.parts[1:]
-        file_path_hierarchy = " contains ".join(parts)
+    async def _build_file_datapoints(self, file: Path, tree, source: str) -> dict:
+        lines = source.splitlines()
+        rel_path = str(file.relative_to(self.repo))
 
-        hierarchy_prompt = """
-        Extract only directory and file containment relationships from this text.
-        Each entity is either a folder or a file. Connect them using the relationship "contains".
-        Do not extract any other entity types or relationships.
-        """
+        file_dp = File(
+            path=rel_path,
+            language="python",
+            repo_name=self.repo_name,
+            access_count=0,
+        )
 
-        try:
-            await cognee.remember(
-                file_path_hierarchy,
-                dataset_name=self.repo_name,
-                custom_prompt=hierarchy_prompt,
-                self_improvement=True,
-            )
-            await cognee.remember(
-                self.file_path,
-                dataset_name=self.repo_name,
-                self_improvement=True,
-            )
-        except Exception as e:
-            logger.error(f"Failed to cognify {file}: {e}", exc_info=True)
+        class_dps: list[Class] = []
+        function_dps: list[Function] = []
+        contains_edges: list[Edge] = []
+        call_edges_raw: list[tuple[str, str, str]] = []  # (caller_name, caller_file, callee_name)
+
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                fn_dp = Function(
+                    name=node.name,
+                    file_path=rel_path,
+                    repo_name=self.repo_name,
+                    args=[arg.arg for arg in node.args.args],
+                    return_type=ast.unparse(node.returns) if node.returns else None,
+                    docstring=ast.get_docstring(node),
+                    body_summary="\n".join(lines[node.lineno - 1:node.end_lineno]),
+                    calls=self._extract_calls(node),
+                    access_count=0,
+                )
+                function_dps.append(fn_dp)
+                contains_edges.append(FileContainsFunction.from_nodes(file_dp, fn_dp))
+                for callee_name in fn_dp.calls:
+                    call_edges_raw.append((fn_dp.name, fn_dp.file_path, callee_name))
+
+            elif isinstance(node, ast.ClassDef):
+                cls_dp = Class(
+                    name=node.name,
+                    file_path=rel_path,
+                    methods=[n.name for n in ast.walk(node) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))],
+                    docstring=ast.get_docstring(node),
+                    body_summary="\n".join(lines[node.lineno - 1:node.end_lineno]),
+                )
+                class_dps.append(cls_dp)
+                contains_edges.append(FileContainsClass.from_nodes(file_dp, cls_dp))
+
+        return {
+            "file": file_dp,
+            "classes": class_dps,
+            "functions": function_dps,
+            "contains_edges": contains_edges,
+            "call_edges_raw": call_edges_raw,  
+        }
