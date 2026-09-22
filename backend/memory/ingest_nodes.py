@@ -5,6 +5,7 @@ from backend.memory.edges import Edge
 from backend.memory.kuzu import REL_TABLES
 from backend.exceptions import NodeIngestionError
 from backend.exceptions import EdgeIngestionError , MissingEndpointError
+from backend.memory.generate_embeddings import embed_texts
  
 def _get_embeddable_fields(cls) -> list[str]:
     hints = get_type_hints(cls, include_extras=True)
@@ -44,7 +45,17 @@ def ingest_node(conn, lancedb_table, node: DataPoint, embed_fn):
             .execute(row)
 
 
-def ingest_nodes(conn, lancedb_table, nodes: list[DataPoint], embed_fn):
+def ingest_nodes(conn, lancedb_table, nodes: list[DataPoint]):
+    texts_by_node = {}
+    for node in nodes:
+        text = _build_embedding_text(node)
+        if text:
+            texts_by_node[node.id] = text
+
+    ids = list(texts_by_node.keys())
+    vectors = embed_texts([texts_by_node[i] for i in ids])
+    vector_by_id = dict(zip(ids, vectors))
+
     embedding_rows = []
     try:
         conn.execute("BEGIN TRANSACTION")
@@ -54,13 +65,12 @@ def ingest_nodes(conn, lancedb_table, nodes: list[DataPoint], embed_fn):
             set_clause = ", ".join(f"n.{k} = ${k}" for k in props if k != "id")
             conn.execute(f"MERGE (n:{label} {{id: $id}}) SET {set_clause}", props)
 
-            text = _build_embedding_text(node)
-            if text:
+            if node.id in vector_by_id:
                 embedding_rows.append({
                     "id": node.id,
                     "node_type": label,
-                    "text": text,
-                    "vector": embed_fn(text),
+                    "text": texts_by_node[node.id],
+                    "vector": vector_by_id[node.id],
                 })
         conn.execute("COMMIT")
     except Exception as e:
