@@ -23,3 +23,8 @@ class MissingEndpointError(EdgeIngestionError):
             f"{rel}: cannot create edge, {missing} endpoint not found "
             f"(source_id={source_id}, target_id={target_id})"
         )
+
+class EmbeddingError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        super().__init__(f"{self.msg}")
