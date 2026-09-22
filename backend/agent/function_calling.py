@@ -18,7 +18,7 @@ from typing import Optional
 from backend.logger.logger_setup import logger_setup
 from backend.exceptions import AIRequestError
 
-import cognee
+
 logger = logger_setup()
 client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 

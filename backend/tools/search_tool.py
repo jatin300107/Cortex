@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from backend.logger.logger_setup import logger
-from datapoints import File, Class, Function
-from edges import Edge, FileContainsFunction, FileContainsClass
+from backend.memory.datapoints import File, Class, Function
+from backend.memory.edges import Edge, FileContainsFunction, FileContainsClass
 from backend.agent.dataset import store_datasets
 SKIP_DIRS = {"venv", ".venv", "env", ".git", "__pycache__", "node_modules", "dist", "build", "site-packages"}
 from os import PathLike
