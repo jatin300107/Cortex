@@ -1,11 +1,17 @@
-from backend.memory.datapoints import DataPoint
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from backend.memory.db.datapoints import DataPoint
+
+
 class Edge(BaseModel):
     source_id: str
     target_id: str
 
     @classmethod
-    def from_nodes(cls, source: DataPoint, target: DataPoint, **kwargs):
+    def from_nodes(cls, source: "DataPoint", target: "DataPoint", **kwargs):
         return cls(source_id=source.id, target_id=target.id, **kwargs)
 
 
@@ -46,6 +52,8 @@ class BlockerBlocksFile(Edge):
     pass
 
 class DirectoryContainsFile(Edge):
+    pass
+class DirectoryContainsDirectory(Edge):
     pass
 
 class FileContainsClass(Edge):

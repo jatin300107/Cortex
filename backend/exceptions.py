@@ -12,7 +12,6 @@ class NodeIngestionError(Exception):
 class EdgeIngestionError(Exception):
     pass
 
-
 class MissingEndpointError(EdgeIngestionError):
     def __init__(self, rel: str, source_id: str, target_id: str, missing: str):
         self.rel = rel
@@ -25,6 +24,21 @@ class MissingEndpointError(EdgeIngestionError):
         )
 
 class EmbeddingError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        super().__init__(f"{self.msg}")
+
+class HeirarchyExtractionError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        super().__init__(f"{self.msg}")
+
+class LanceDBQueryError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        super().__init__(f"{self.msg}")
+
+class RowReconstructionErrror(Exception):
     def __init__(self, msg):
         self.msg = msg
         super().__init__(f"{self.msg}")

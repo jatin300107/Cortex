@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Annotated, ClassVar, Literal, get_type_hints, get_args
 from pydantic import BaseModel, model_validator
 
+from backend.memory.db.edges import Edge
+
 
 class Dedup:
     pass
@@ -93,3 +95,25 @@ class Blocker(DataPoint):
     created_in: Annotated[int, Dedup()]
     status: Literal["open", "resolved"] = "open"
     metadata: dict = {"index_fields": ["description"]}
+
+
+class ExtractionResult(BaseModel):
+    node: DataPoint
+    score: float | None = None         
+    matched_via: Literal["semantic", "structural"]
+    edges: list[Edge] = [] 
+
+
+NODE_TYPES = {
+    cls.__name__: cls
+    for cls in (
+        Directory,
+        File,
+        Class,
+        Function,
+        Session,
+        ReasoningNode,
+        ErrorResolutionNode,
+        Blocker,
+    )
+}

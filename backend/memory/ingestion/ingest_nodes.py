@@ -1,11 +1,11 @@
 import json
 from typing import get_type_hints, get_args
-from backend.memory.datapoints import DataPoint, Embeddable
-from backend.memory.edges import Edge
-from backend.memory.kuzu import REL_TABLES
+from backend.memory.db.datapoints import DataPoint, Embeddable
+from backend.memory.db.edges import Edge
+from backend.memory.db.kuzu import REL_TABLES
 from backend.exceptions import NodeIngestionError
 from backend.exceptions import EdgeIngestionError , MissingEndpointError
-from backend.memory.generate_embeddings import embed_texts
+from backend.memory.ingestion.generate_embeddings import embed_texts
  
 def _get_embeddable_fields(cls) -> list[str]:
     hints = get_type_hints(cls, include_extras=True)

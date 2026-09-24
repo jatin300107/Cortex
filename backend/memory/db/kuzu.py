@@ -21,6 +21,7 @@ NODE_TABLES = {
  
 
 REL_TABLES = {
+    "DirectoryContainsDirectory": ("Directory", "Directory"),
     "FunctionCallsFunction": ("Function", "Function"),
     "FunctionCallsClass": ("Function", "Class"),
     "ClassCallsFunction": ("Class", "Function"),
