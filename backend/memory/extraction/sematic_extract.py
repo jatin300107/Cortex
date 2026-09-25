@@ -24,6 +24,6 @@ def semantic_extract(query_vector: list[float], lancedb_table, kuzu_conn, top_k:
                 matched_via="semantic"
             ))
         except Exception as e:
-            raise LanceDBQueryError(f"Failed to reconstruct node from LanceDB hit {hit}: {e}")
+            raise LanceDBQueryError(f"Failed to reconstruct node from LanceDB hit {hit}: {e}") from e
     return results
 

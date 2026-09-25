@@ -20,7 +20,7 @@ def get_directory_tree(kuzu_conn, directory_id: str, max_depth: int = 10) -> lis
     """
     try:
 
-        edge_pattern = "|".join(CONTAINMENT_EDGES)
+        edge_pattern = CONTAINMENT_EDGES[0] if len(CONTAINMENT_EDGES) == 1 else "|:".join(CONTAINMENT_EDGES)
         query = (
             f"MATCH (d:Directory {{id: $id}})"
             f"-[:{edge_pattern}*1..{max_depth}]->(n) "
