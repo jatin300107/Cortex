@@ -1,62 +1,52 @@
 from dotenv import load_dotenv
 load_dotenv()
-from cognee import SearchType
-import cognee
-from get_utils import get_user
+from backend.exceptions import QueryMemoryError
+from backend.memory.ingestion.generate_embeddings import embed_texts
 from backend.logger.logger_setup import logger_setup
 logger = logger_setup()
 from fastapi import HTTPException
+from backend.memory.extraction.sematic_extract import semantic_extract
+from backend.memory.extraction.hierarchy import get_directory_tree
+from backend.memory.extraction.structural import get_relations
+from backend.memory.db.datapoints import ExtractionResult
+from backend.memory.db import get_kuzu_connection, get_lancedb_connection
 # repo_name
 # dataset_name=repo_name
 # dataset_name=repo_name
-class CogneeSearch():
-    def __init__(self,repo_name):
-        self.repo_name = repo_name
-        self.memory_dataset = f"{repo_name}_memory"
-        
-    async def cognee_query(self, query: str, mode: str = "default"):
-        try:
-            if mode == "triplet":
-                results = await cognee.recall(
-                    query,
-                    query_type=SearchType.TRIPLET_COMPLETION,
-                    datasets=[self.repo_name, self.memory_dataset],
-                )
-            else:
-                results = await cognee.recall(
-                    query,
-                    datasets=[self.repo_name , self.memory_dataset],
-                )
+def query_memory(
+    query_text: str,
+    
+    
+    top_k: int = 10,
+) -> list[dict]:
+    """
+    Orchestrator tool exposed to the agent. Given a raw query, returns a merged
+    context bundle: each hit's own content plus its relation info (lightweight
+    edge/target for normal nodes, full content for ReasoningNode hits).
+    """
+    lancedb_table,kuzu_conn = get_lancedb_connection(), get_kuzu_connection()
+    try:
+        query_vector = embed_texts([query_text])[0]
+    except Exception as e:
+        raise QueryMemoryError(f"Failed to embed query '{query_text}': {e}") from e
 
-            if not results:
-                return {"success": True, "answer": None, "note": "No relevant memory found."}
+    hits = semantic_extract(query_vector, lancedb_table, kuzu_conn, top_k=top_k)
 
-            answer = results[0].text
-            
-            return {
-                "success": True,
-                "answer": answer,
-            }
-                
+    if not hits:
+        return []
 
+    relations = get_relations(kuzu_conn, hits)
 
+    context = []
+    for hit in hits:
+        node = hit.node
+        context.append({
+            "id": node.id,
+            "type": type(node).__name__,
+            "content": node.model_dump(),
+            "score": hit.score,
+            "matched_via": hit.matched_via,
+            "relations": relations.get(node.id, []),
+        })
 
-        except Exception as e:
-            error_str = str(e).lower()
-            error_type = str(type(e)).lower()
-
-            if ("datasetnotfounderror" in error_type or ("dataset" in error_str and "not found" in error_str)):
-                try:
-                    cognee.remember(f"new dataset for {self.repo_name}", dataset_name=self.repo_name)
-                    cognee.remember(f"Memory of dataset {self.repo_name}", dataset_name=self.memory_dataset)
-                    return {"succes" : False,
-                            "answer" : "It is a new datset created no data available right now"}
-                except Exception as remember_error:
-                    logger.warning(f"Failed to initialize dataset memory entries: {remember_error}")
-                    
-            if "rate limit" in error_str or "429" in error_str:
-                logger.error(f"Rate limit hit in cognee_query: {e}", exc_info=True)
-                raise HTTPException(status_code=429, detail="Rate limit exceeded, please try again later.")
-            logger.error(f"cognee_query failed: {e}", exc_info=True)
-            return {"success": False, "error": str(e)}
-        
+    return context

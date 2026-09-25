@@ -3,9 +3,9 @@ import lancedb
 import pyarrow as pa
 LANCEDB_PATH = os.environ.get("LANCEDB_PATH", "./lancedb")
 EMBEDDING_DIM = 768 
-
+from backend.memory.db import get_lancedb_connection
 def init_lancedb() -> lancedb.LanceDB: 
-    db = lancedb.connect(LANCEDB_PATH)
+    db = get_lancedb_connection()
  
     if "embeddings" not in db.list_tables():
         schema = pa.schema([

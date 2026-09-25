@@ -1,6 +1,6 @@
 import os
 import kuzu
-
+from backend.memory.db import get_kuzu_connection
 KUZU_DB_PATH = os.environ.get("KUZU_DB_PATH", "./kuzu_db")
 
 NODE_TABLES = {
@@ -42,8 +42,7 @@ REL_TABLES = {
 }
 
 def init_kuzu() -> kuzu.Connection:
-    db = kuzu.Database(KUZU_DB_PATH)
-    conn = kuzu.Connection(db)
+    conn = get_kuzu_connection()
  
     result = conn.execute("CALL show_tables() RETURN name;")
     existing = set()
@@ -61,3 +60,7 @@ def init_kuzu() -> kuzu.Connection:
         conn.execute(f"CREATE REL TABLE {name}(FROM {src} TO {tgt})")
  
     return conn
+
+
+     
+     
