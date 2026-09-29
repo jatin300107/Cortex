@@ -17,4 +17,4 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         result = _client.models.embed_content(model=EMBEDDING_MODEL, contents=texts)
         return [e.values for e in result.embeddings]
     except Exception as e:
-        raise EmbeddingError(f"Error generating embeddings: {e}") from e
+        raise EmbeddingError(f"Error generating embeddings for texts {texts}: {e}") from e

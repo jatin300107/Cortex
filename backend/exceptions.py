@@ -38,7 +38,17 @@ class LanceDBQueryError(Exception):
         self.msg = msg
         super().__init__(f"{self.msg}")
 
-class RowReconstructionErrror(Exception):
+class RowReconstructionError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        super().__init__(f"{self.msg}")
+
+class GraphQueryError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        super().__init__(f"{self.msg}")
+
+class QueryMemoryError(Exception):
     def __init__(self, msg):
         self.msg = msg
         super().__init__(f"{self.msg}")

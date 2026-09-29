@@ -164,3 +164,42 @@ whether anyone ever asks about it.
   messages, whether to pull PR descriptions/linked issues in addition to
   `git log`, and whether it's built as part of this pipeline at all versus a
   separate on-demand tool (see §6a). Explicitly out of v1 scope.
+
+## Retrieval Layer — Design Decisions
+
+### traverse()
+- Multi-label edge syntax in Kuzu requires a colon before every label after the first: `EDGE1|:EDGE2|:EDGE3`, not `EDGE1|EDGE2|EDGE3`. Same bug existed in `get_directory_tree`'s `CONTAINMENT_EDGES` join — both fixed.
+- `traverse()` requires an explicit `expected_type` argument (the calling node's type) rather than looking it up itself. Reason: Kuzu allows untyped node patterns (`(a {id: $id})` with no label), so nothing stops a caller from passing a mismatched node_id/edge_label pair — it would silently return an empty list instead of erroring. `expected_type` is checked against `REL_TABLES[edge_label]` in plain Python before any query runs, so a caller mistake fails loud and fast, before touching Kuzu.
+- Callers always have the type available already, since anything upstream of `traverse()` (e.g. `get_relations`) works from `ExtractionResult` objects that already carry a fully reconstructed, typed `DataPoint`. No caller ever has a bare untyped id.
+
+### get_relations()
+- For most node types: return lightweight relation info only — edge label, target type, target identifying field (name/path) — not full target content. Avoids pulling full content for every relation of every top-k hit, which would balloon token usage fast.
+- Exception: `ReasoningNode` hits get full connected content (`Blocker`/`ErrorResolutionNode`) via `traverse()`, not the lightweight path. Reasoning content without its resolution is incomplete on its own.
+- Batched in one Kuzu query across all non-reasoning-node ids at once (not one query per hit), same batching principle as `get_directory_tree`.
+
+### query_memory() (agent-facing tool)
+- Orchestrates: embed query → `semantic_extract` (top-k) → `get_relations` → merge into flat context list → return.
+- LLM-facing signature is `query_text` + `top_k` only. DB connections and `embed_texts` are pulled via module-level getters/imports inside the function body, never passed as tool parameters, since the LLM can't and shouldn't populate infra objects.
+- Repo/dataset scoping (`get_kuzu_connection()`, `get_lancedb_connection()`) is currently unscoped/single-repo. Deliberately deferred — to be addressed when multi-repo support is actually built.
+
+### Function.calls resolution
+- `Function.calls` stores callee **names**, not ids, by design.
+- Resolving a call chain (e.g. "how is auth implemented" → main function → helper) means the agent issues a **second** `query_memory` call using the callee name plus surrounding context (not just the bare name in isolation).
+- This works because embeddings are built from each function's own content (docstring/body), so two same-named functions in different contexts (e.g. admin `verify_token` vs user `verify_token`) still resolve correctly when the follow-up query includes context, not just the identifier. Semantic search disambiguates on content, not on name uniqueness.
+- Multi-hop resolution via repeated tool calls is treated as normal agent behavior, not a design flaw.
+
+### Retrieval routing: graph hit vs fallback
+- If the target already has a node in the graph (ingested), semantic search returns it directly — the node carries its own `file_path`.
+- If not yet ingested (stale graph, or genuinely unindexed), fallback is structural exploration: read directory structure, use naming/path conventions to guess likely files, open and read directly. Same approach a coding agent uses without an index.
+- This makes **ingestion freshness** the critical dependency for the whole routing decision — a stale graph produces false negatives (looks like "not in codebase" when it's just "not yet indexed"), not a clean signal to fall back. A last-ingested timestamp or git-hook-triggered re-ingest is needed to distinguish "genuinely absent" from "just stale," and is the most important unresolved piece for this system to be trustworthy.
+
+### Known typo fixes (already applied)
+- `RowReconstructionErrror` → corrected.
+- `HeirarchyExtractionError` → corrected.
+
+### Rate limiting / retry (Gemini API calls)
+- Free tier: 5 RPM ceiling on the strongest Flash model, 250K TPM (TPM is not the bottleneck, RPM is).
+- Design choice: Cortex ships using whatever tier the running user's own API key has. No RPM handling baked in as a permanent constraint, since a paid-tier user hits no ceiling. Free-tier users (including dev/testing) hit the same limits Cortex's own logic can smooth over, not eliminate.
+- Retry strategy: exponential backoff with jitter, not a fixed wait. Fixed delays either overpay when a rate limit clears fast, or underpay when it doesn't clear and needs a longer wait. Backoff (e.g. 2s → 4s → 8s → 16s, plus random jitter) adapts to both cases and avoids retry collisions if multiple calls are in flight.
+- Capped retry count (e.g. 5 attempts) — no infinite retry loop. On exhaustion, raise a real error (`QueryMemoryError` or similar) rather than hanging silently inside the agent loop.
+- Applied narrowly: wraps only the actual network call site (the Gemini request itself), not the surrounding function, so already-succeeded work (semantic search, graph traversal) doesn't get needlessly retried alongside a failed API call.

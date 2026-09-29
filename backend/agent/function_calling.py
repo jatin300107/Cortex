@@ -12,7 +12,7 @@ import asyncio
 import os
 from backend.tools.tool_declaration import search_repo_declaration , cognee_query_declaration
 from backend.tools.search_tool import SearchTool
-from backend.tools.cognee_search import CogneeSearch
+
 from pydantic import BaseModel 
 from typing import Optional
 from backend.logger.logger_setup import logger_setup

@@ -5,7 +5,11 @@ def logger_setup():
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[logging.StreamHandler()] )  
+        handlers=[
+        logging.FileHandler("cortex.log"),
+        logging.StreamHandler()
+    ]
+ )  
     return logging.getLogger(__name__)
 
 logger = logger_setup()

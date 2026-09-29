@@ -6,7 +6,8 @@ from backend.memory.db.kuzu import REL_TABLES
 from backend.exceptions import NodeIngestionError
 from backend.exceptions import EdgeIngestionError , MissingEndpointError
 from backend.memory.ingestion.generate_embeddings import embed_texts
- 
+from backend.logger.logger_setup import logger_setup
+logger = logger_setup()
 def _get_embeddable_fields(cls) -> list[str]:
     hints = get_type_hints(cls, include_extras=True)
     return [f for f, t in hints.items() if any(isinstance(a, Embeddable) for a in get_args(t))]
@@ -46,6 +47,7 @@ def ingest_node(conn, lancedb_table, node: DataPoint, embed_fn):
 
 
 def ingest_nodes(conn, lancedb_table, nodes: list[DataPoint]):
+
     texts_by_node = {}
     for node in nodes:
         text = _build_embedding_text(node)
@@ -134,6 +136,6 @@ def ingest_edges(conn, edges: list[Edge]):
         raise EdgeIngestionError(f"Error ingesting edges, rolled back: {e}") from e
 
 def ingest_batch(conn, lancedb_table, nodes: list[DataPoint], edges: list[Edge], embed_fn):
-    ingest_nodes(conn, lancedb_table, nodes, embed_fn)
+    ingest_nodes(conn, lancedb_table, nodes)
     ingest_edges(conn, edges)
     
