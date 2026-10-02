@@ -219,7 +219,7 @@ def test_mid_batch_failure_rolls_back_graph(conn, table):
     assert table.calls == 0  # LanceDB never touched after a graph failure
 
 
-@pytest.mark.xfail(strict=True, reason="embed_texts runs outside the try block, raw error escapes")
+
 def test_embedding_failure_is_wrapped(conn, table, monkeypatch):
     def boom(texts):
         raise RuntimeError("api down")
@@ -228,7 +228,7 @@ def test_embedding_failure_is_wrapped(conn, table, monkeypatch):
         ing.ingest_nodes(conn, table, [make_function(docstring="d")])
 
 
-@pytest.mark.xfail(strict=True, reason="graph commits before LanceDB write, no compensation on failure")
+
 def test_lancedb_failure_does_not_leave_orphan_graph_nodes(conn):
     table = FakeTable(fail=True)
     with pytest.raises(NodeIngestionError):

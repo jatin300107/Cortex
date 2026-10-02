@@ -61,7 +61,10 @@ def ingest_nodes(conn, lancedb_table, nodes: list[DataPoint]):
             texts_by_node[node.id] = text
 
     ids = list(texts_by_node.keys())
-    vectors = embed_texts([texts_by_node[i] for i in ids]) if ids else []
+    try:
+        vectors = embed_texts([texts_by_node[i] for i in ids]) if ids else []
+    except Exception as e:
+        raise NodeIngestionError(f"Embedding failed: {e}") from e
     vector_by_id = dict(zip(ids, vectors))
 
     embedding_rows = []
@@ -80,16 +83,17 @@ def ingest_nodes(conn, lancedb_table, nodes: list[DataPoint]):
                     "text": texts_by_node[node.id],
                     "vector": vector_by_id[node.id],
                 })
+        if embedding_rows:
+                lancedb_table.merge_insert("id") \
+                        .when_matched_update_all() \
+                        .when_not_matched_insert_all() \
+                        .execute(embedding_rows)
         conn.execute("COMMIT")
     except Exception as e:
         _safe_rollback(conn)
         raise NodeIngestionError(f"Error ingesting nodes, rolled back: {e}") from e
-
-    if embedding_rows:
-        lancedb_table.merge_insert("id") \
-            .when_matched_update_all() \
-            .when_not_matched_insert_all() \
-            .execute(embedding_rows)
+    
+    
    
 
 
