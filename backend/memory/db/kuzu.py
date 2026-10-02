@@ -42,6 +42,7 @@ REL_TABLES = {
 }
 
 def init_kuzu() -> kuzu.Connection:
+    
     conn = get_kuzu_connection()
  
     result = conn.execute("CALL show_tables() RETURN name;")

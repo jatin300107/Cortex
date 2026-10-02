@@ -19,7 +19,18 @@ from backend.memory.db.kuzu import REL_TABLES, init_kuzu
 from backend.exceptions import (
     EdgeIngestionError, MissingEndpointError, NodeIngestionError,
 )
+import backend.memory.db as db_pkg
+import backend.memory.db.kuzu as kuzu_mod
 
+@pytest.fixture
+def conn(tmp_path, monkeypatch):
+    db = kuzu.Database(str(tmp_path / "kuzu_db"))
+    c = kuzu.Connection(db)
+    monkeypatch.setattr(db_pkg, "get_kuzu_connection", lambda: c)
+    monkeypatch.setattr(kuzu_mod, "get_kuzu_connection", lambda: c, raising=False)
+    kuzu_mod.init_kuzu()
+    assert c.execute("CALL show_tables() RETURN name;").has_next(), "schema not created on test conn"
+    yield c
 
 # ---------- fakes and fixtures ----------
 
@@ -61,12 +72,7 @@ def patch_embedder(monkeypatch):
     monkeypatch.setattr(ing, "embed_texts", fake_embed_texts)
 
 
-@pytest.fixture
-def conn(tmp_path):
-    db = kuzu.Database(str(tmp_path / "kuzu_db"))
-    c = kuzu.Connection(db)
-    init_kuzu()
-    yield c
+
 
 
 @pytest.fixture

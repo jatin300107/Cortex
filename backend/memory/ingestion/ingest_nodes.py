@@ -8,6 +8,12 @@ from backend.exceptions import EdgeIngestionError , MissingEndpointError
 from backend.memory.ingestion.generate_embeddings import embed_texts
 from backend.logger.logger_setup import logger_setup
 logger = logger_setup()
+
+def _safe_rollback(conn):
+    try:
+        conn.execute("ROLLBACK")
+    except RuntimeError:
+        pass  # Kuzu already aborted the transaction after a failed statement
 def _get_embeddable_fields(cls) -> list[str]:
     hints = get_type_hints(cls, include_extras=True)
     return [f for f, t in hints.items() if any(isinstance(a, Embeddable) for a in get_args(t))]
@@ -55,7 +61,7 @@ def ingest_nodes(conn, lancedb_table, nodes: list[DataPoint]):
             texts_by_node[node.id] = text
 
     ids = list(texts_by_node.keys())
-    vectors = embed_texts([texts_by_node[i] for i in ids])
+    vectors = embed_texts([texts_by_node[i] for i in ids]) if ids else []
     vector_by_id = dict(zip(ids, vectors))
 
     embedding_rows = []
@@ -76,7 +82,7 @@ def ingest_nodes(conn, lancedb_table, nodes: list[DataPoint]):
                 })
         conn.execute("COMMIT")
     except Exception as e:
-        conn.execute("ROLLBACK")
+        _safe_rollback(conn)
         raise NodeIngestionError(f"Error ingesting nodes, rolled back: {e}") from e
 
     if embedding_rows:
@@ -135,7 +141,7 @@ def ingest_edges(conn, edges: list[Edge]):
         conn.execute("ROLLBACK")
         raise EdgeIngestionError(f"Error ingesting edges, rolled back: {e}") from e
 
-def ingest_batch(conn, lancedb_table, nodes: list[DataPoint], edges: list[Edge], embed_fn):
+def ingest_batch(conn, lancedb_table, nodes: list[DataPoint], edges: list[Edge]):
     ingest_nodes(conn, lancedb_table, nodes)
     ingest_edges(conn, edges)
     
