@@ -173,7 +173,7 @@ class SearchTool:
             path=rel_path,
             language="python",
             repo_name=self.repo_name,
-            access_count=0,
+            
         )
 
         class_dps: list[Class] = []
@@ -192,7 +192,7 @@ class SearchTool:
                     docstring=ast.get_docstring(node),
                     body_summary="\n".join(lines[node.lineno - 1:node.end_lineno]),
                     calls=self._extract_calls(node),
-                    access_count=0,
+                    
                 )
                 function_dps.append(fn_dp)
                 contains_edges.append(FileContainsFunction.from_nodes(file_dp, fn_dp))

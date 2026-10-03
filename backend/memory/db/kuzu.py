@@ -5,12 +5,12 @@ KUZU_DB_PATH = os.environ.get("KUZU_DB_PATH", "./kuzu_db")
 
 NODE_TABLES = {
     "Directory": "path STRING, repo_name STRING",
-    "File": "path STRING, language STRING, repo_name STRING, access_count INT64",
+    "File": "path STRING, language STRING, repo_name STRING",
     "Class": "name STRING, file_path STRING, methods STRING[], docstring STRING, "
              "body_summary STRING, metadata STRING",
     "Function": "name STRING, file_path STRING, repo_name STRING, args STRING[], "
                 "return_type STRING, docstring STRING, body_summary STRING, "
-                "calls STRING[], access_count INT64, metadata STRING",
+                "calls STRING[], metadata STRING",
     "Session": "session_id INT64, query STRING, answer STRING, timestamp TIMESTAMP",
     "ReasoningNode": "session_id INT64, intent STRING, reasoning_chain STRING, "
                       "conclusion STRING, suggested_because STRING, blocked_by STRING, metadata STRING",

@@ -38,7 +38,7 @@ class File(DataPoint):
     path: Annotated[str, Dedup()]
     language: str
     repo_name: str
-    access_count: int = 0
+    
 
 
 class Class(DataPoint):
@@ -59,7 +59,7 @@ class Function(DataPoint):
     docstring: Annotated[str | None, Embeddable()] = None
     body_summary: Annotated[str | None, Embeddable()] = None
     calls: list[str] = []
-    access_count: int = 0
+    
     metadata: dict = {"index_fields": ["name", "file_path", "docstring", "body_summary"]}
 
 
