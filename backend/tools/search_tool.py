@@ -1,13 +1,15 @@
 import ast
+import asyncio
 import re
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
-
+from backend.memory.db import get_kuzu_connection, get_lancedb_connection
 from backend.logger.logger_setup import logger
 from backend.memory.db.datapoints import File, Class, Function
 from backend.memory.db.edges import Edge, FileContainsFunction, FileContainsClass
-from backend.agent.dataset import store_datasets
+from backend.exceptions import FileParseError, DatapointBuildError, FileIngestionError , NodeIngestionError, EdgeIngestionError, MissingEndpointError
+from backend.memory.ingestion.ingest_nodes import ingest_batch
 SKIP_DIRS = {"venv", ".venv", "env", ".git", "__pycache__", "node_modules", "dist", "build", "site-packages"}
 from os import PathLike
 class SearchTool:
@@ -15,8 +17,51 @@ class SearchTool:
     def __init__(self, repo_path: str | PathLike ):
         self.repo = Path(repo_path)
         self.repo_name = self.repo.name
+        self._ingest_lock = asyncio.Lock()  # one ingestion at a time, see note below
 
-        
+
+    async def _ingest_file(self, file: Path, source: str | None = None,
+                        tree: ast.AST | None = None) -> None:
+        rel_path = str(file.relative_to(self.repo))
+
+        # Search already has source/tree, so it passes them in. A standalone
+        # caller (the freshness router later) passes only the path.
+        if source is None or tree is None:
+            try:
+                source = file.read_text(encoding="utf-8")
+                tree = ast.parse(source)
+            except (OSError, UnicodeDecodeError, SyntaxError) as e:
+                raise FileParseError(rel_path, str(e)) from e
+
+        try:
+            dps = self._build_file_datapoints(file, tree, source)
+        except Exception as e:
+            raise DatapointBuildError(rel_path, str(e)) from e
+
+        nodes = [dps["file"], *dps["classes"], *dps["functions"]]
+        edges = dps["contains_edges"]  # call_edges_raw deliberately not ingested in V1
+
+        async with self._ingest_lock:
+            try:
+                await asyncio.to_thread(
+                    ingest_batch,
+                    get_kuzu_connection(),
+                    get_lancedb_connection(),
+                    nodes,
+                    edges,
+                )
+            except (NodeIngestionError, EdgeIngestionError, MissingEndpointError) as e:
+                raise FileIngestionError(rel_path, e) from e
+
+
+    async def _safe_ingest(self, file: Path, source: str | None = None,
+                        tree: ast.AST | None = None) -> None:
+        """Ingestion must never cost the agent its search result."""
+        try:
+            await self._ingest_file(file, source, tree)
+        except (FileParseError, DatapointBuildError, FileIngestionError) as e:
+            logger.error(f"Ingestion skipped for {file}: {e}")
+            
 
     async def run(self, mode: str, query: str ) -> list[dict]:
         logger.info("Search started")
@@ -38,9 +83,9 @@ class SearchTool:
                 tree = ast.parse(source)
                 matched = self._extract_matches(tree, source, query)
                 if matched:
-                    await self._build_file_datapoints(file)
+                    await self._safe_ingest(file, source, tree)
                     results.extend(matched)
-                    results.extend({"file_path" : file})
+                    results.append({"file_path": str(file.relative_to(self.repo))})
                     
             except Exception as e:
                 logger.error(f"Failed to parse {file}: {e}")
@@ -62,7 +107,7 @@ class SearchTool:
                         if name:
                             matched = self._extract_matches(tree, source, name)
                             if matched:
-                                await self._build_file_datapoints(file)
+                                await self._safe_ingest(file, source, tree)
                                 results.extend(matched)
                                 break
             except Exception:

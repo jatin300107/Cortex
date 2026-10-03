@@ -52,3 +52,26 @@ class QueryMemoryError(Exception):
     def __init__(self, msg):
         self.msg = msg
         super().__init__(f"{self.msg}")
+
+class FileParseError(Exception):
+    """File could not be read or parsed into an AST."""
+    def __init__(self, path: str, reason: str):
+        self.path = path
+        self.reason = reason
+        super().__init__(f"Could not parse {path}: {reason}")
+
+
+class DatapointBuildError(Exception):
+    """AST was parsed but turning it into datapoints/edges failed."""
+    def __init__(self, path: str, reason: str):
+        self.path = path
+        self.reason = reason
+        super().__init__(f"Could not build datapoints for {path}: {reason}")
+
+
+class FileIngestionError(Exception):
+    """Node or edge ingestion failed for a file. Wraps the underlying error."""
+    def __init__(self, path: str, cause: Exception):
+        self.path = path
+        self.cause = cause
+        super().__init__(f"Ingestion failed for {path}: {cause}")
